@@ -1,21 +1,33 @@
 import datetime 
+from pymongo import MongoClient
 from flask import Flask, render_template, request
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
+    client = MongoClient("localhost", 27017)
+    app.db = client.microblog
+    entries = []
 
-entries = []
+    @app.route("/", methods= ["GET", "POST"])
+    def index(): 
+        if request.method == "POST":
+            entryContent = request.form.get("content")
+            formatedDate = datetime.datetime.today().strftime("%Y-%m-%d")
+            # entries.append((entryContent, formatedDate))
+            app.db.entries.insert_one({"content": entryContent, 
+                                        "date": formatedDate})
 
-@app.route("/", methods= ["POST", "GET"])
-def index(): 
-    if request.method == "POST":
-        entryContent = request.form.get("content")
-        formatedDate = datetime.datetime.today().strftime("%Y-%m-%d")
-        entries.append((entryContent, formatedDate))
+        # Format date the same way as it's represented on the web page.
+        formatedEntries = [
+            (
+            entry["content"],
+            entry["date"], 
+            datetime.datetime.strptime(entry["date"], "%Y-%m-%d").strftime("%b %d")
+            )
+            for entry in app.db.entries.find({})]
 
-# Format date properly
-        formatedEntries = [(entry[0],
-                            entry[1], 
-                            datetime.datetime.strptime(entry[1], "%Y-%m-%d").strftime("%b %d"))
-                            for entry in entries]
 
-    return render_template("index.html", entries = formatedEntries)
+            
+
+        return render_template("index.html", entries = formatedEntries)
+    return app
